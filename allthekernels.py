@@ -37,6 +37,8 @@ Will run the cell in a Python 2 kernel
 Will run in Julia 0.4, etc.
 """
 
+__version__ = '0.0.1'
+
 class KernelProxy(object):
     """A proxy for a single kernel
     

@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include img
+graft share
+
+prune htmlcov
+prune build
