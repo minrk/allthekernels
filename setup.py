@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import glob
+import os
 import sys
 
 from distutils.core import setup
@@ -18,6 +20,8 @@ with open('allthekernels.py') as f:
         if line.startswith('__version__'):
             exec(line, version_ns)
 
+here = os.path.dirname(__file__)
+
 setup_args = dict(
     name='allthekernels',
     version=version_ns['__version__'],
@@ -27,6 +31,7 @@ setup_args = dict(
     long_description=long_description,
     url="https://github.com/minrk/allthekernels",
     py_modules=['allthekernels'],
+    data_files=[('share/jupyter/kernels/atk', glob.glob('atk/*'))],
     license="MIT",
     cmdclass={},
     classifiers=[
