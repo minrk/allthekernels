@@ -1,0 +1,10 @@
+{
+  "display_name": "All the Kernels",
+  "argv": [
+      "python3",
+      "-m",
+      "allthekernels",
+      "-f",
+      "{connection_file}"
+  ]
+}
