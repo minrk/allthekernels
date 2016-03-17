@@ -22,19 +22,30 @@ from ipykernel.kernelapp import IPKernelApp
 
 
 banner = """\
-All The Kernels: A single Jupyter kernel that multiplexes all 
+All The Kernels: A single Jupyter kernel that multiplexes.
 
-For instance, use
+Per default, all cells will be executed in the default python kernel. If the
+first line of a cell starts with `>`, the line will be parsed as kernel name and
+the rest of the cell will be executed in that kernel.
+
+For instance,
 
     >python2
     def foo():
         ...
 
-Will run the cell in a Python 2 kernel
+will run the cell in a Python 2 kernel, and
 
     >julia-0.4
     
-Will run in Julia 0.4, etc.
+will run in Julia 0.4, etc.
+
+You can also set a new default kernel by prefixing the kernel name with `!`:
+
+    >!ir
+
+In this case the current cell and all further cells without a kernel name will
+be executed in an R kernel.
 """
 
 __version__ = '0.0.1'
@@ -133,6 +144,10 @@ class AllTheKernels(Kernel):
             first_line = cell
             cell = ''
         kernel_name = first_line[1:].strip()
+        if kernel_name[0] == "!":
+            # >!kernelname sets it as the new default
+            kernel_name = kernel_name[1:].strip()
+            self.default_kernel = kernel_name
         return kernel_name, cell
     
     def _publish_status(self, status):

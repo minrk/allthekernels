@@ -40,12 +40,6 @@ setup_args = dict(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
     ],
-    requires=[
-        'ipykernel>=4.3',
-        'jupyter-client',
-        'pyzmq>=15.2',
-        'tornado>=4',
-    ],
 )
 
 if 'bdist_wheel' in sys.argv:
