@@ -81,7 +81,7 @@ class AllTheKernels(Kernel):
     banner = banner
     
     kernels = Dict()
-    default_kernel = 'python%i' % (sys.version_info[0])
+    default_kernel = os.environ.get('ATK_DEFAULT_KERNEL') or 'python%i' % (sys.version_info[0])
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
