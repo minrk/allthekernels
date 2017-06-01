@@ -42,7 +42,7 @@ setup_args = dict(
     ],
     install_requires=[
         'ipykernel>=4.3',
-        'jupyter-client',
+        'jupyter-client>=5.0',
         'pyzmq>=15.2',
         'tornado>=4',
     ],

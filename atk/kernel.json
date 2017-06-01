@@ -1,7 +1,7 @@
 {
   "display_name": "All the Kernels",
   "argv": [
-      "python3",
+      "python",
       "-m",
       "allthekernels",
       "-f",
