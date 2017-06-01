@@ -179,13 +179,12 @@ class AllTheKernels(Kernel):
 class AllTheKernelsApp(IPKernelApp):
 
     kernel_class = AllTheKernels
+    # disable IO capture
+    outstream_class = None
 
     def _log_level_default(self):
         return 10
 
-    def init_io(self):
-        # disable IO capture
-        return
 
 main = AllTheKernelsApp.launch_instance
 
