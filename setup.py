@@ -3,16 +3,23 @@ import os
 import sys
 import string
 
-from distutils.core import setup
+from setuptools import setup
+from setuptools.command.bdist_egg import bdist_egg
 
-long_description = """
-Multiplexing kernel for Jupyter
 
-Use all your kernels in a single notebook.
-Specify which kernel each should run by starting the cell with
+class bdist_egg_disabled(bdist_egg):
+    """Disabled version of bdist_egg
 
->kernel-name
-"""
+    Prevents setup.py install from performing setuptools' default easy_install,
+    which it should never ever do.
+    """
+    def run(self):
+        sys.exit("Aborting implicit building of eggs. Use `pip install .` to install from source.")
+
+
+with open("README.md") as f:
+    long_description = f.read()
+
 
 version_ns = {}
 with open('allthekernels.py') as f:
@@ -20,7 +27,9 @@ with open('allthekernels.py') as f:
         if line.startswith('__version__'):
             exec(line, version_ns)
 
+
 here = os.path.dirname(__file__)
+
 
 setup_args = dict(
     name='allthekernels',
@@ -29,6 +38,7 @@ setup_args = dict(
     author_email="benjaminrk@gmail.com",
     description="Multiplexing kernel for Jupyter",
     long_description=long_description,
+    long_description_content_type="text/markdown",
     url="https://github.com/minrk/allthekernels",
     py_modules=['allthekernels'],
     data_files=[('share/jupyter/kernels/atk', ['atk/kernel.json'])],
@@ -48,9 +58,6 @@ setup_args = dict(
     ],
 )
 
-if 'bdist_wheel' in sys.argv:
-    from wheel.bdist_wheel import bdist_wheel
-    setup_args['cmdclass']['bdist_wheel'] = bdist_wheel
 
 def kernelspec(executable):
     with open(os.path.join(here, 'atk', 'kernel.json.in')) as input_file:
@@ -59,12 +66,14 @@ def kernelspec(executable):
     with open(os.path.join(here, 'atk', 'kernel.json'), 'w') as output_file:
         output_file.write(text)
 
+
 # When building a wheel, the executable specified in the kernelspec is simply 'python'.
 # When installing from source, the full `sys.executable` can be used.
 if any(a.startswith('bdist') for a in sys.argv):
     kernelspec(executable='python')
 else:
     kernelspec(executable=sys.executable)
+
 
 if __name__ == '__main__':
     setup(**setup_args)
