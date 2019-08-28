@@ -48,7 +48,7 @@ In this case the current cell and all further cells without a kernel name will
 be executed in an R kernel.
 """
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 class KernelProxy(object):
     """A proxy for a single kernel
