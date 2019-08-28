@@ -1,7 +1,7 @@
 include README.md
 include LICENSE
 include img
-graft share
+include atk/kernel.json.tpl
 
 prune htmlcov
 prune build
