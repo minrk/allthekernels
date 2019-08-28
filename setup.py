@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-import glob
 import os
 import sys
+import string
 
 from distutils.core import setup
 
@@ -31,7 +31,7 @@ setup_args = dict(
     long_description=long_description,
     url="https://github.com/minrk/allthekernels",
     py_modules=['allthekernels'],
-    data_files=[('share/jupyter/kernels/atk', glob.glob('atk/*'))],
+    data_files=[('share/jupyter/kernels/atk', ['atk/kernel.json'])],
     license="MIT",
     cmdclass={},
     classifiers=[
@@ -51,6 +51,20 @@ setup_args = dict(
 if 'bdist_wheel' in sys.argv:
     from wheel.bdist_wheel import bdist_wheel
     setup_args['cmdclass']['bdist_wheel'] = bdist_wheel
+
+def kernelspec(executable):
+    with open(os.path.join(here, 'atk', 'kernel.json.in')) as input_file:
+        template = string.Template(input_file.read())
+        text = template.safe_substitute({ 'python': executable })
+    with open(os.path.join(here, 'atk', 'kernel.json'), 'w') as output_file:
+        output_file.write(text)
+
+# When building a wheel, the executable specified in the kernelspec is simply 'python'.
+# When installing from source, the full `sys.executable` can be used.
+if any(a.startswith('bdist') for a in sys.argv):
+    kernelspec(executable='python')
+else:
+    kernelspec(executable=sys.executable)
 
 if __name__ == '__main__':
     setup(**setup_args)
