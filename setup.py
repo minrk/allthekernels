@@ -60,7 +60,7 @@ setup_args = dict(
 
 
 def kernelspec(executable):
-    with open(os.path.join(here, 'atk', 'kernel.json.in')) as input_file:
+    with open(os.path.join(here, 'atk', 'kernel.json.tpl')) as input_file:
         template = string.Template(input_file.read())
         text = template.safe_substitute({ 'python': executable })
     with open(os.path.join(here, 'atk', 'kernel.json'), 'w') as output_file:
@@ -68,10 +68,10 @@ def kernelspec(executable):
 
 
 # When building a wheel, the executable specified in the kernelspec is simply 'python'.
-# When installing from source, the full `sys.executable` can be used.
 if any(a.startswith('bdist') for a in sys.argv):
     kernelspec(executable='python')
-else:
+# When installing, the kernel executable path is set to `sys.executable`.
+if any(a.startswith('install') for a in sys.argv):
     kernelspec(executable=sys.executable)
 
 
