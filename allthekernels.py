@@ -48,7 +48,7 @@ be executed in an R kernel.
 """
 
 
-__version__ = '1.0.3.dev'
+__version__ = '1.1.0.dev'
 
 
 class KernelProxy(object):
@@ -74,7 +74,7 @@ class KernelProxy(object):
 class AllTheKernels(Kernel):
     """Kernel class for proxying ALL THE KERNELS YOU HAVE"""
     implementation = 'AllTheKernels'
-    implementation_version = '0.1'
+    implementation_version = __version__
     language_info = {
         'name': 'all-of-them',
         'mimetype': 'text/plain',
