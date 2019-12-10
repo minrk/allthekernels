@@ -6,7 +6,6 @@ Like magic!
 import os
 import sys
 
-from tornado import gen
 from tornado.ioloop import IOLoop
 
 import zmq
@@ -37,7 +36,7 @@ For instance,
 will run the cell in a Python 2 kernel, and
 
     >julia-0.4
-    
+
 will run in Julia 0.4, etc.
 
 You can also set a new default kernel by prefixing the kernel name with `!`:
@@ -48,11 +47,14 @@ In this case the current cell and all further cells without a kernel name will
 be executed in an R kernel.
 """
 
-__version__ = '1.0.3.dev'
+
+__version__ = '1.1.0.dev'
+
 
 class KernelProxy(object):
     """A proxy for a single kernel
-    
+
+
     Hooks up relay of messages on the shell channel.
     """
     def __init__(self, manager, shell_upstream):
@@ -61,45 +63,44 @@ class KernelProxy(object):
         self.shell_upstream = shell_upstream
         self.iopub_url = self.manager._make_url('iopub')
         IOLoop.current().add_callback(self.relay_shell)
-    
-    @gen.coroutine
-    def relay_shell(self):
+
+    async def relay_shell(self):
         """Coroutine for relaying any shell replies"""
         while True:
-            msg = yield self.shell.recv_multipart()
+            msg = await self.shell.recv_multipart()
             self.shell_upstream.send_multipart(msg)
 
 
 class AllTheKernels(Kernel):
     """Kernel class for proxying ALL THE KERNELS YOU HAVE"""
     implementation = 'AllTheKernels'
-    implementation_version = '0.1'
+    implementation_version = __version__
     language_info = {
         'name': 'all-of-them',
         'mimetype': 'text/plain',
     }
     banner = banner
-    
+
     kernels = Dict()
     default_kernel = os.environ.get('ATK_DEFAULT_KERNEL') or 'python%i' % (sys.version_info[0])
-    
+    _atk_parent = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.future_context = ctx = Context()
         self.iosub = ctx.socket(zmq.SUB)
         self.iosub.subscribe = b''
         self.shell_stream = self.shell_streams[0]
-    
+
     def start(self):
         super().start()
         loop = IOLoop.current()
         loop.add_callback(self.relay_iopub_messages)
-    
-    @gen.coroutine
-    def relay_iopub_messages(self):
+
+    async def relay_iopub_messages(self):
         """Coroutine for relaying IOPub messages from all of our kernels"""
         while True:
-            msg = yield self.iosub.recv_multipart()
+            msg = await self.iosub.recv_multipart()
             self.iopub_socket.send_multipart(msg)
 
     def start_kernel(self, name):
@@ -122,16 +123,21 @@ class AllTheKernels(Kernel):
             shell_upstream=self.shell_stream)
         self.iosub.connect(kernel.iopub_url)
         return self.kernels[name]
-    
+
     def get_kernel(self, name):
         """Get a kernel, start it if it doesn't exist"""
         if name not in self.kernels:
             self.start_kernel(name)
         return self.kernels[name]
-    
+
+    def set_parent(self, ident, parent):
+        # record the parent message
+        self._atk_parent = parent
+        return super().set_parent(ident, parent)
+
     def split_cell(self, cell):
         """Return the kernel name and remaining cell contents
-        
+
         If no kernel name is specified, use the default kernel.
         """
         if not cell.startswith('>'):
@@ -149,17 +155,23 @@ class AllTheKernels(Kernel):
             kernel_name = kernel_name[1:].strip()
             self.default_kernel = kernel_name
         return kernel_name, cell
-    
+
     def _publish_status(self, status):
-        """Disabling publishing status messages
-        
+        """Disabling publishing status messages for relayed
+
         Status messages will be relayed from the actual kernels.
         """
-        return
-    
+        if self._atk_parent and self._atk_parent['header']['msg_type'] in {
+            'execute_request', 'inspect_request', 'complete_request'
+        }:
+            self.log.debug("suppressing %s status message.", status)
+            return
+        else:
+            return super()._publish_status(status)
+
     def relay_to_kernel(self, stream, ident, parent):
         """Relay a message to a kernel
-        
+
         Gets the `>kernel` line off of the cell,
         finds the kernel (starts it if necessary),
         then relays the request.
@@ -169,8 +181,9 @@ class AllTheKernels(Kernel):
         kernel_name, cell = self.split_cell(cell)
         content['code'] = cell
         kernel = self.get_kernel(kernel_name)
+        self.log.debug("Relaying %s to %s", parent['header']['msg_type'], kernel_name)
         self.session.send(kernel.shell, parent, ident=ident)
-    
+
     execute_request = relay_to_kernel
     inspect_request = relay_to_kernel
     complete_request = relay_to_kernel
@@ -187,6 +200,7 @@ class AllTheKernelsApp(IPKernelApp):
 
 
 main = AllTheKernelsApp.launch_instance
+
 
 if __name__ == '__main__':
     main()
