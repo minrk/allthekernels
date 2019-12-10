@@ -43,7 +43,8 @@ setup_args = dict(
     py_modules=['allthekernels'],
     data_files=[('share/jupyter/kernels/atk', ['atk/kernel.json'])],
     license="MIT",
-    cmdclass={},
+    cmdclass={"bdist_egg": bdist_egg_disabled},
+    python_requires=">=3.5",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -54,7 +55,7 @@ setup_args = dict(
         'ipykernel>=4.3',
         'jupyter-client>=5.0',
         'pyzmq>=15.2',
-        'tornado>=4',
+        'tornado>=5',
     ],
 )
 
@@ -70,10 +71,11 @@ def kernelspec(executable):
 # When building a wheel, the executable specified in the kernelspec is simply 'python'.
 if any(a.startswith('bdist') for a in sys.argv):
     kernelspec(executable='python')
+
 # When installing, the kernel executable path is set to `sys.executable`.
-if any(a.startswith('install') for a in sys.argv):
+if any(a.startswith(("install", "develop")) for a in sys.argv):
     kernelspec(executable=sys.executable)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setup(**setup_args)
