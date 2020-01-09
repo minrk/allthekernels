@@ -188,6 +188,11 @@ class AllTheKernels(Kernel):
     inspect_request = relay_to_kernel
     complete_request = relay_to_kernel
 
+    def do_shutdown(self, restart):
+        for kernel in self.kernels.values():
+            kernel.manager.shutdown_kernel(False, restart)
+        super().do_shutdown(restart)
+
 
 class AllTheKernelsApp(IPKernelApp):
 
