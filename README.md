@@ -11,7 +11,6 @@ A Jupyter kernel that multiplexes all the kernels you have installed.
 python3 -m pip install allthekernels
 ```
 Or to do a dev install from source:
-
 ```
 python3 -m pip install [-e] .
 ```
