@@ -191,7 +191,7 @@ class AllTheKernels(Kernel):
     def do_shutdown(self, restart):
         for kernel in self.kernels.values():
             kernel.manager.shutdown_kernel(False, restart)
-        super().do_shutdown(restart)
+        return super().do_shutdown(restart)
 
 
 class AllTheKernelsApp(IPKernelApp):
