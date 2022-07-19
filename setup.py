@@ -52,7 +52,7 @@ setup_args = dict(
         "Programming Language :: Python :: 3",
     ],
     install_requires=[
-        'ipykernel>=4.3',
+        'ipykernel>=6.0',
         'jupyter-client>=5.0',
         'pyzmq>=15.2',
         'tornado>=5',
