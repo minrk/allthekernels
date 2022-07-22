@@ -57,18 +57,28 @@ class KernelProxy(object):
 
     Hooks up relay of messages on the shell channel.
     """
-    def __init__(self, manager, shell_upstream):
+    def __init__(self, manager, shell_upstream, iopub_upstream, context):
         self.manager = manager
         self.shell = self.manager.connect_shell()
         self.shell_upstream = shell_upstream
-        self.iopub_url = self.manager._make_url('iopub')
+        self.iopub_upstream = iopub_upstream
+        self.iosub = context.socket(zmq.SUB)
+        self.iosub.subscribe = b''
+        self.iosub.connect(self.manager._make_url('iopub'))
         IOLoop.current().add_callback(self.relay_shell)
+        IOLoop.current().add_callback(self.relay_iopub)
 
     async def relay_shell(self):
         """Coroutine for relaying any shell replies"""
         while True:
             msg = await self.shell.recv_multipart()
             self.shell_upstream.send_multipart(msg)
+
+    async def relay_iopub(self):
+        """Coroutine for relaying IOPub messages from all of our kernels"""
+        while True:
+            msg = await self.iosub.recv_multipart()
+            self.iopub_upstream.send_multipart(msg)
 
 
 class AllTheKernels(Kernel):
@@ -87,21 +97,8 @@ class AllTheKernels(Kernel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.future_context = ctx = Context()
-        self.iosub = ctx.socket(zmq.SUB)
-        self.iosub.subscribe = b''
+        self.future_context = Context()
         self.shell_stream = self.shell_streams[0]
-
-    def start(self):
-        super().start()
-        loop = IOLoop.current()
-        loop.add_callback(self.relay_iopub_messages)
-
-    async def relay_iopub_messages(self):
-        """Coroutine for relaying IOPub messages from all of our kernels"""
-        while True:
-            msg = await self.iosub.recv_multipart()
-            self.iopub_socket.send_multipart(msg)
 
     def start_kernel(self, name):
         """Start a new kernel"""
@@ -120,8 +117,11 @@ class AllTheKernels(Kernel):
         manager.start_kernel()
         self.kernels[name] = kernel = KernelProxy(
             manager=manager,
-            shell_upstream=self.shell_stream)
-        self.iosub.connect(kernel.iopub_url)
+            shell_upstream=self.shell_stream,
+            iopub_upstream =self.iopub_socket,
+            context = self.future_context
+            )
+
         return self.kernels[name]
 
     def get_kernel(self, name):
