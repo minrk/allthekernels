@@ -130,10 +130,10 @@ class AllTheKernels(Kernel):
             self.start_kernel(name)
         return self.kernels[name]
 
-    def set_parent(self, ident, parent):
+    def set_parent(self, ident, parent, channel="shell"):
         # record the parent message
         self._atk_parent = parent
-        return super().set_parent(ident, parent)
+        return super().set_parent(ident, parent, channel)
 
     def split_cell(self, cell):
         """Return the kernel name and remaining cell contents
@@ -156,7 +156,7 @@ class AllTheKernels(Kernel):
             self.default_kernel = kernel_name
         return kernel_name, cell
 
-    def _publish_status(self, status):
+    def _publish_status(self, status, channel, parent=None):
         """Disabling publishing status messages for relayed
 
         Status messages will be relayed from the actual kernels.
@@ -167,7 +167,7 @@ class AllTheKernels(Kernel):
             self.log.debug("suppressing %s status message.", status)
             return
         else:
-            return super()._publish_status(status)
+            return super()._publish_status(status, channel, parent)
 
     def relay_to_kernel(self, stream, ident, parent):
         """Relay a message to a kernel
