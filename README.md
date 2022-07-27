@@ -12,7 +12,10 @@ python3 -m pip install allthekernels
 ```
 Or to do a dev install from source:
 ```
-python3 -m pip install [-e] .
+python3 -m pip install -e .
+# manually install kernelspec in your environment, e.g.:
+# mkdir ~/mambaforge/envs/allthekernels/share/jupyter/kernels/atk
+# cp atk/kernel.json ~/mambaforge/envs/allthekernels/share/jupyter/kernels/atk
 ```
 
 # Usage
