@@ -67,7 +67,7 @@ class KernelProxy(object):
         self.iosub.connect(self.manager._make_url('iopub'))
         IOLoop.current().add_callback(self.relay_shell)
         IOLoop.current().add_callback(self.relay_iopub)
-        self.shell_reply_event = asyncio.Event() # to track if on shell channel the reply message has been received on shell
+        self.shell_reply_event = asyncio.Event() # to track if on shell channel the reply message has been received
 
 
     async def relay_shell(self):
@@ -118,7 +118,7 @@ class AllTheKernels(Kernel):
             connection_file=cf,
         )
         manager.start_kernel()
-        self.kernels[name] = kernel_client = KernelProxy(
+        self.kernels[name] = KernelProxy(
             manager=manager,
             shell_upstream=self.shell_stream,
             iopub_upstream =self.iopub_socket,
