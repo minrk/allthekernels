@@ -5,7 +5,11 @@ Like magic!
 
 import os
 import sys
+<<<<<<< HEAD
 
+=======
+import asyncio
+>>>>>>> 4678cec (Wait the end of the execution of a cell before starting the execution of the next one.)
 from tornado.ioloop import IOLoop
 
 import zmq
@@ -67,12 +71,22 @@ class KernelProxy(object):
         self.iosub.connect(self.manager._make_url('iopub'))
         IOLoop.current().add_callback(self.relay_shell)
         IOLoop.current().add_callback(self.relay_iopub)
+<<<<<<< HEAD
+=======
+        self.shell_reply_event = asyncio.Event() # to track if on shell channel the reply message has been received on shell
+
+>>>>>>> 4678cec (Wait the end of the execution of a cell before starting the execution of the next one.)
 
     async def relay_shell(self):
         """Coroutine for relaying any shell replies"""
         while True:
             msg = await self.shell.recv_multipart()
+            self.shell_reply_event.set() # the status of shell_reply_event is changed to set when the reply is received
             self.shell_upstream.send_multipart(msg)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4678cec (Wait the end of the execution of a cell before starting the execution of the next one.)
 
     async def relay_iopub(self):
         """Coroutine for relaying IOPub messages from all of our kernels"""
@@ -169,7 +183,30 @@ class AllTheKernels(Kernel):
         else:
             return super()._publish_status(status, channel, parent)
 
+<<<<<<< HEAD
     def relay_to_kernel(self, stream, ident, parent):
+=======
+    async def execute_request(self, stream, ident, parent):
+        """Execute request sent to a kernel
+
+        Gets the `>kernel` line off of the cell,
+        finds the kernel (starts it if necessary),
+        then relays the request.
+        """
+        content = parent['content']
+        cell = content['code']
+        kernel_name, cell = self.split_cell(cell)
+        content['code'] = cell
+        kernel = self.get_kernel(kernel_name)
+        self.log.debug("Relaying %s to %s", parent['header']['msg_type'], kernel_name)
+        self.session.send(kernel.shell, parent, ident=ident)
+        await kernel.shell_reply_event.wait() # waiting till shell_reply event status is 'set'
+        kernel.shell_reply_event.clear() # then the event's status is changed to 'unset'
+
+
+
+    async def relay_to_kernel(self, stream, ident, parent):
+>>>>>>> 4678cec (Wait the end of the execution of a cell before starting the execution of the next one.)
         """Relay a message to a kernel
 
         Gets the `>kernel` line off of the cell,
@@ -183,6 +220,10 @@ class AllTheKernels(Kernel):
         kernel = self.get_kernel(kernel_name)
         self.log.debug("Relaying %s to %s", parent['header']['msg_type'], kernel_name)
         self.session.send(kernel.shell, parent, ident=ident)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4678cec (Wait the end of the execution of a cell before starting the execution of the next one.)
 
     execute_request = relay_to_kernel
     inspect_request = relay_to_kernel
