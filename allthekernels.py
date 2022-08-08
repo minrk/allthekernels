@@ -164,8 +164,8 @@ class AllTheKernels(Kernel):
             self.default_kernel = kernel_name
         return kernel_name, cell
 
-    async def execute_request(self, stream, ident, parent):
-        """Execute request sent to a kernel
+    async def relay_to_kernel(self, stream, ident, parent):
+        """Relay a message to the kernel
 
         Gets the `>kernel` line off of the cell,
         finds the kernel (starts it if necessary),
@@ -181,21 +181,7 @@ class AllTheKernels(Kernel):
         await kernel_client.shell_reply_event.wait()  # waiting till shell_reply event status is 'set'
         kernel_client.shell_reply_event.clear()  # then the event's status is changed to 'unset'
 
-    async def relay_to_kernel(self, stream, ident, parent):
-        """Relay a message to a kernel
-
-        Gets the `>kernel` line off of the cell,
-        finds the kernel (starts it if necessary),
-        then relays the request.
-        """
-        content = parent['content']
-        cell = content['code']
-        kernel_name, cell = self.split_cell(cell)
-        content['code'] = cell
-        kernel_client = self.get_kernel(kernel_name)
-        self.log.debug("Relaying %s to %s", parent['header']['msg_type'], kernel_name)
-        self.session.send(kernel_client.shell, parent, ident=ident)
-
+    execute_request = relay_to_kernel
     inspect_request = relay_to_kernel
     complete_request = relay_to_kernel
 
