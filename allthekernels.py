@@ -85,8 +85,7 @@ class KernelProxy(object):
             msg = self.session.deserialize(msg)
             if (msg["msg_type"] != "status"):
                 self.iopub_upstream.send_multipart(raw_msg)
-            else:
-                pass
+            # our status is published when replying to the request.
 
 
 class AllTheKernels(Kernel):
