@@ -59,6 +59,7 @@ class KernelProxy(object):
     """
     def __init__(self, manager, shell_upstream, iopub_upstream, context):
         self.manager = manager
+        self.session = manager.session
         self.shell = self.manager.connect_shell()
         self.shell_upstream = shell_upstream
         self.iopub_upstream = iopub_upstream
@@ -67,21 +68,25 @@ class KernelProxy(object):
         self.iosub.connect(self.manager._make_url('iopub'))
         IOLoop.current().add_callback(self.relay_shell)
         IOLoop.current().add_callback(self.relay_iopub)
-        self.shell_reply_event = asyncio.Event() # to track if on shell channel the reply message has been received
-
+        self.shell_reply_event = asyncio.Event()  # to track if on shell channel the reply message has been received
 
     async def relay_shell(self):
         """Coroutine for relaying any shell replies"""
         while True:
             msg = await self.shell.recv_multipart()
-            self.shell_reply_event.set() # the status of shell_reply_event is changed to set when the reply is received
+            self.shell_reply_event.set()  # the status of shell_reply_event is changed to set when the reply is received
             self.shell_upstream.send_multipart(msg)
 
     async def relay_iopub(self):
         """Coroutine for relaying IOPub messages from all of our kernels"""
         while True:
-            msg = await self.iosub.recv_multipart()
-            self.iopub_upstream.send_multipart(msg)
+            raw_msg = await self.iosub.recv_multipart()
+            ident, msg = self.session.feed_identities(raw_msg)
+            msg = self.session.deserialize(msg)
+            if (msg["msg_type"] != "status"):
+                self.iopub_upstream.send_multipart(raw_msg)
+            else:
+                pass
 
 
 class AllTheKernels(Kernel):
@@ -121,8 +126,8 @@ class AllTheKernels(Kernel):
         self.kernels[name] = KernelProxy(
             manager=manager,
             shell_upstream=self.shell_stream,
-            iopub_upstream =self.iopub_socket,
-            context = self.future_context
+            iopub_upstream=self.iopub_socket,
+            context=self.future_context
             )
 
         return self.kernels[name]
@@ -159,19 +164,6 @@ class AllTheKernels(Kernel):
             self.default_kernel = kernel_name
         return kernel_name, cell
 
-    def _publish_status(self, status, channel, parent=None):
-        """Disabling publishing status messages for relayed
-
-        Status messages will be relayed from the actual kernels.
-        """
-        if self._atk_parent and self._atk_parent['header']['msg_type'] in {
-            'execute_request', 'inspect_request', 'complete_request'
-        }:
-            self.log.debug("suppressing %s status message.", status)
-            return
-        else:
-            return super()._publish_status(status, channel, parent)
-
     async def execute_request(self, stream, ident, parent):
         """Execute request sent to a kernel
 
@@ -186,10 +178,8 @@ class AllTheKernels(Kernel):
         kernel_client = self.get_kernel(kernel_name)
         self.log.debug("Relaying %s to %s", parent['header']['msg_type'], kernel_name)
         self.session.send(kernel_client.shell, parent, ident=ident)
-        await kernel_client.shell_reply_event.wait() # waiting till shell_reply event status is 'set'
-        kernel_client.shell_reply_event.clear() # then the event's status is changed to 'unset'
-
-
+        await kernel_client.shell_reply_event.wait()  # waiting till shell_reply event status is 'set'
+        kernel_client.shell_reply_event.clear()  # then the event's status is changed to 'unset'
 
     async def relay_to_kernel(self, stream, ident, parent):
         """Relay a message to a kernel
