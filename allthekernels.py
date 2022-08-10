@@ -5,7 +5,7 @@ Like magic!
 
 import os
 import sys
-
+import asyncio
 from tornado.ioloop import IOLoop
 
 import zmq
@@ -57,18 +57,35 @@ class KernelProxy(object):
 
     Hooks up relay of messages on the shell channel.
     """
-    def __init__(self, manager, shell_upstream):
+    def __init__(self, manager, shell_upstream, iopub_upstream, context):
         self.manager = manager
+        self.session = manager.session
         self.shell = self.manager.connect_shell()
         self.shell_upstream = shell_upstream
-        self.iopub_url = self.manager._make_url('iopub')
+        self.iopub_upstream = iopub_upstream
+        self.iosub = context.socket(zmq.SUB)
+        self.iosub.subscribe = b''
+        self.iosub.connect(self.manager._make_url('iopub'))
         IOLoop.current().add_callback(self.relay_shell)
+        IOLoop.current().add_callback(self.relay_iopub)
+        self.shell_reply_event = asyncio.Event()  # to track if on shell channel the reply message has been received
 
     async def relay_shell(self):
         """Coroutine for relaying any shell replies"""
         while True:
             msg = await self.shell.recv_multipart()
+            self.shell_reply_event.set()  # the status of shell_reply_event is changed to set when the reply is received
             self.shell_upstream.send_multipart(msg)
+
+    async def relay_iopub(self):
+        """Coroutine for relaying IOPub messages from all of our kernels"""
+        while True:
+            raw_msg = await self.iosub.recv_multipart()
+            ident, msg = self.session.feed_identities(raw_msg)
+            msg = self.session.deserialize(msg)
+            if (msg["msg_type"] != "status"):
+                self.iopub_upstream.send_multipart(raw_msg)
+            # our status is published when replying to the request.
 
 
 class AllTheKernels(Kernel):
@@ -87,21 +104,8 @@ class AllTheKernels(Kernel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.future_context = ctx = Context()
-        self.iosub = ctx.socket(zmq.SUB)
-        self.iosub.subscribe = b''
+        self.future_context = Context()
         self.shell_stream = self.shell_streams[0]
-
-    def start(self):
-        super().start()
-        loop = IOLoop.current()
-        loop.add_callback(self.relay_iopub_messages)
-
-    async def relay_iopub_messages(self):
-        """Coroutine for relaying IOPub messages from all of our kernels"""
-        while True:
-            msg = await self.iosub.recv_multipart()
-            self.iopub_socket.send_multipart(msg)
 
     def start_kernel(self, name):
         """Start a new kernel"""
@@ -118,10 +122,13 @@ class AllTheKernels(Kernel):
             connection_file=cf,
         )
         manager.start_kernel()
-        self.kernels[name] = kernel = KernelProxy(
+        self.kernels[name] = KernelProxy(
             manager=manager,
-            shell_upstream=self.shell_stream)
-        self.iosub.connect(kernel.iopub_url)
+            shell_upstream=self.shell_stream,
+            iopub_upstream=self.iopub_socket,
+            context=self.future_context
+            )
+
         return self.kernels[name]
 
     def get_kernel(self, name):
@@ -156,21 +163,8 @@ class AllTheKernels(Kernel):
             self.default_kernel = kernel_name
         return kernel_name, cell
 
-    def _publish_status(self, status, channel, parent=None):
-        """Disabling publishing status messages for relayed
-
-        Status messages will be relayed from the actual kernels.
-        """
-        if self._atk_parent and self._atk_parent['header']['msg_type'] in {
-            'execute_request', 'inspect_request', 'complete_request'
-        }:
-            self.log.debug("suppressing %s status message.", status)
-            return
-        else:
-            return super()._publish_status(status, channel, parent)
-
-    def relay_to_kernel(self, stream, ident, parent):
-        """Relay a message to a kernel
+    async def relay_to_kernel(self, stream, ident, parent):
+        """Relay a message to the kernel
 
         Gets the `>kernel` line off of the cell,
         finds the kernel (starts it if necessary),
@@ -180,9 +174,11 @@ class AllTheKernels(Kernel):
         cell = content['code']
         kernel_name, cell = self.split_cell(cell)
         content['code'] = cell
-        kernel = self.get_kernel(kernel_name)
+        kernel_client = self.get_kernel(kernel_name)
         self.log.debug("Relaying %s to %s", parent['header']['msg_type'], kernel_name)
-        self.session.send(kernel.shell, parent, ident=ident)
+        self.session.send(kernel_client.shell, parent, ident=ident)
+        await kernel_client.shell_reply_event.wait()  # waiting till shell_reply event status is 'set'
+        kernel_client.shell_reply_event.clear()  # then the event's status is changed to 'unset'
 
     execute_request = relay_to_kernel
     inspect_request = relay_to_kernel
