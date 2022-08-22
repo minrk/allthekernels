@@ -48,7 +48,7 @@ be executed in an R kernel.
 """
 
 
-__version__ = '1.2.0.dev'
+__version__ = '1.2.0'
 
 
 class KernelProxy(object):
